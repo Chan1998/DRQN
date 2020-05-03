@@ -8,7 +8,8 @@ class QNetwork:
         with tf.variable_scope(name):
             self.inputs_ = tf.placeholder(tf.float32, [None,step_size, state_size], name='inputs_')
             self.actions_ = tf.placeholder(tf.int32, [None], name='actions')
-            one_hot_actions = tf.one_hot(self.actions_, action_size)
+            with tf.device('/cpu:0'):
+                one_hot_actions = tf.one_hot(self.actions_, action_size)
             
             
             self.targetQs_ = tf.placeholder(tf.float32, [None], name='target')
@@ -53,7 +54,8 @@ class QNetwork:
             
             '''
             self.Q = tf.reduce_sum(tf.multiply(self.output, one_hot_actions), axis=1)
-            
+            #self.Q = tf.reduce_max(self.output, axis=1,keepdims=False)
+
             self.loss = tf.reduce_mean(tf.square(self.targetQs_ - self.Q))
             self.opt = tf.train.AdamOptimizer(learning_rate).minimize(self.loss)
 
@@ -79,6 +81,7 @@ class Memory():
         for i in idx:
             temp_buffer = []  
             for j in range(step_size):
+
                 temp_buffer.append(self.buffer[i+j])
             res.append(temp_buffer)
         return res    

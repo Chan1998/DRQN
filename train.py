@@ -8,7 +8,7 @@ import os
 import tensorflow as tf
 import time
 
-TIME_SLOTS = 100000                            # number of time-slots to run simulation
+TIME_SLOTS = 10000                            # number of time-slots to run simulation
 NUM_CHANNELS = 2                               # Total number of channels
 NUM_USERS = 3                                  # Total number of users
 ATTEMPT_PROB = 1                               # attempt probability of ALOHA based  models 
@@ -89,55 +89,55 @@ for ii in range(pretrain_length*step_size*5):
 
 ##############################################
     
-def get_states(batch): 
-    states = []
-    for  i in batch:
-        states_per_batch = []
-        for step_i in i:
-            states_per_step = []
-            for user_i in step_i[0]:
-                states_per_step.append(user_i)
-            states_per_batch.append(states_per_step)
-        states.append(states_per_batch)     
-   
-    return states
-
-def get_actions(batch):
-    actions = []
-    for each in batch:
-        actions_per_batch = []
-        for step_i in each:
-            actions_per_step = []
-            for user_i in step_i[1]:
-                actions_per_step.append(user_i)
-            actions_per_batch.append(actions_per_step)
-        actions.append(actions_per_batch)
-
-    return actions
-
-def get_rewards(batch):
-    rewards = []
-    for each in batch:
-        rewards_per_batch = []
-        for step_i in each:
-            rewards_per_step = []
-            for user_i in step_i[2]:
-                rewards_per_step.append(user_i)
-            rewards_per_batch.append(rewards_per_step)
-        rewards.append(rewards_per_batch)
-    return rewards
-
-def get_next_states(batch):
-    next_states = []
-    for each in batch:
-        next_states_per_batch = []
-        for step_i in each:
-            next_states_per_step = []
-            for user_i in step_i[3]:
-                next_states_per_step.append(user_i)
-            next_states_per_batch.append(next_states_per_step)
-        next_states.append(next_states_per_batch)
-    return next_states        
+# def get_states(batch):
+#     states = []
+#     for  i in batch:
+#         states_per_batch = []
+#         for step_i in i:
+#             states_per_step = []
+#             for user_i in step_i[0]:
+#                 states_per_step.append(user_i)
+#             states_per_batch.append(states_per_step)
+#         states.append(states_per_batch)
+#
+#     return states
+#
+# def get_actions(batch):
+#     actions = []
+#     for each in batch:
+#         actions_per_batch = []
+#         for step_i in each:
+#             actions_per_step = []
+#             for user_i in step_i[1]:
+#                 actions_per_step.append(user_i)
+#             actions_per_batch.append(actions_per_step)
+#         actions.append(actions_per_batch)
+#
+#     return actions
+#
+# def get_rewards(batch):
+#     rewards = []
+#     for each in batch:
+#         rewards_per_batch = []
+#         for step_i in each:
+#             rewards_per_step = []
+#             for user_i in step_i[2]:
+#                 rewards_per_step.append(user_i)
+#             rewards_per_batch.append(rewards_per_step)
+#         rewards.append(rewards_per_batch)
+#     return rewards
+#
+# def get_next_states(batch):
+#     next_states = []
+#     for each in batch:
+#         next_states_per_batch = []
+#         for step_i in each:
+#             next_states_per_step = []
+#             for user_i in step_i[3]:
+#                 next_states_per_step.append(user_i)
+#             next_states_per_batch.append(next_states_per_step)
+#         next_states.append(next_states_per_batch)
+#     return next_states
 
 def get_states_user(batch):
     states = []
@@ -211,13 +211,15 @@ def get_next_states_user(batch):
 
 
 
-interval = 1       # debug interval
+interval = 1000       # debug interval
 
 # saver object to save the checkpoints of the DQN to disk
 saver = tf.train.Saver()
 
 #initializing the session
-sess = tf.Session()
+config = tf.ConfigProto()
+config.gpu_options.per_process_gpu_memory_fraction = 0.7
+sess = tf.Session(config=config)
 
 #initialing all the tensorflow variables
 sess.run(tf.global_variables_initializer())
@@ -231,6 +233,8 @@ cum_r = [0]
 
 # cumulative collision
 cum_collision = [0]
+
+loss_list = []
 
 ##########################################################################
 ####                      main simulation loop                    ########
@@ -251,7 +255,7 @@ for time_step in range(TIME_SLOTS):
     if explore_p > np.random.rand():
         #random action sampling
         action  = env.sample()
-        print ("explored")
+        #print ("explored")
         
     # Exploitation
     else:
@@ -262,7 +266,7 @@ for time_step in range(TIME_SLOTS):
         state_vector = np.array(history_input)
 
         #print np.array(history_input)
-        print ("///////////////")
+        #print ("///////////////")
 
         for each_user in range(NUM_USERS):
             
@@ -292,19 +296,19 @@ for time_step in range(TIME_SLOTS):
 
             #action[each_user] = np.argmax(Qs,axis=1)
             if time_step % interval == 0:
-                print (state_vector[:,each_user])
+                #print (state_vector[:,each_user])
                 print (Qs)
-                print (prob, np.sum(np.exp(beta*Qs)))
+                #print (prob, np.sum(np.exp(beta*Qs)))
 
     # taking action as predicted from the q values and receiving the observation from thr envionment
     obs = env.step(action)           # obs is a list of tuple with [(ACK,REW) for each user ,(CHANNEL_RESIDUAL_CAPACITY_VECTOR)] 
     
     print (action)
-    print (obs)
+    # print (obs)
 
     # Generate next state from action and observation 
     next_state = state_generator(action,obs)
-    print (next_state)
+    # print (next_state)
 
     # reward for all users given by environment
     reward = [i[1] for i in obs[:NUM_USERS]]
@@ -332,7 +336,7 @@ for time_step in range(TIME_SLOTS):
 
 
     total_rewards.append(sum_r)
-    print (reward)
+    #print (reward)
     
     
     # add new experiences into the memory buffer as (state, action , reward , next_state) for training
@@ -386,14 +390,15 @@ for time_step in range(TIME_SLOTS):
                             feed_dict={mainQN.inputs_:states,
                             mainQN.targetQs_:targets,
                             mainQN.actions_:actions[:,-1]})
-    
 
+    loss_list.append(loss)
+    #print(loss)
     #   Training block ends
     ########################################################################################
     
     if  time_step %5000 == 4999:
         plt.figure(1)
-        plt.subplot(211)
+        plt.subplot(311)
         #plt.plot(np.arange(1000),total_rewards,"r+")
         #plt.xlabel('Time Slots')
         #plt.ylabel('total rewards')
@@ -403,20 +408,27 @@ for time_step in range(TIME_SLOTS):
         plt.xlabel('Time Slot')
         plt.ylabel('cumulative collision')
         #plt.show()
-        plt.subplot(212)
+        plt.subplot(312)
         plt.plot(np.arange(5001),cum_r,"r-")
         plt.xlabel('Time Slot')
         plt.ylabel('Cumulative reward of all users')
         #plt.title('Cumulative reward of all users')
+
+        plt.subplot(321)
+        plt.plot(np.arange(len(loss_list)), loss_list, "b-")
+        plt.xlabel('Time Slot')
+        plt.ylabel('Loss')
+
+
         plt.show()
         
         total_rewards = []
         cum_r = [0]
         cum_collision = [0]
         saver.save(sess,'checkpoints/dqn_multi-user.ckpt')
-        #print time_step,loss , sum(reward) , Qs
+        print (time_step,loss , sum(reward) , Qs)
     
-    print ("*************************************************")
+    #print ("*************************************************")
 
    
 
